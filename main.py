@@ -27,7 +27,7 @@ page_header = """
     </style>
 </head>
 <body>
-    <h1>Signup</h1>
+    <a href="/"><h1>Signup</h1></a>
 """
 
 # html boilerplate for the bottom of every page
@@ -37,6 +37,8 @@ page_footer = """
 """
 
 import re
+import cgi
+
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 
 PASS_RE = re.compile(r"^.{3,20}$")
@@ -45,58 +47,78 @@ EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
 
 
 def valid_username(username):
-    return USER_RE.match(username)
+    return username and USER_RE.match(username)
 
 def valid_password(password):
-    return PASS_RE.match(username)
+    return password and PASS_RE.match(password)
 
 def valid_email(email):
-    return EMAIL_RE.match(username)
+    return not email or EMAIL_RE.match(email)
+
+def clear_dict():
+    for i in errors.keys():
+        errors[i] = ''
+
+errors = {'error_username':'',
+          'error_password':'',
+          'error_verify':'',
+          'error_email':''
+}
+
 
 class Signup(webapp2.RequestHandler):
     def get(self):
+        username = self.request.get('username')
+        password = self.request.get('password')
+        verify = self.request.get('verify')
+        email = self.request.get('email')
+
+
 
         signup_form = """
-            <form action="/signup" method="post">
+            <form action='/welcome' method="post">
                 <table>
                     <tr>
                         <td><label for="username">Username</label></td>
                         <td>
-                            <input name="username" type="text" value="username" required>
-                            <span class="error"></span>
+                            <input name="username" type="text" value="{0}" required>
+                            <td class="error">{2}</td>
                         </td>
                     </tr>
                     <tr>
                         <td><label for="Password">Password</label></td>
                         <td>
                             <input name="password" type="password" value="" required>
-                            <span class="error"></span>
+                            <td class="error">{3}</td>
                         </td>
                     </tr>
                     <tr>
                         <td><label for="verify">Verify Password</label></td>
                         <td>
                             <input name="verify" type="password" value="" required>
-                            <span class="error"></span>
+                            <td class="error">{4}</td>
                         </td>
                     </tr>
                     <tr>
                         <td><label for="email">Email (optional)</label></td>
                         <td>
-                            <input name="email" type="email" value="" >
-                            <span class="error"></span>
+                            <input name="email" type="email" value="{1}" >
+                            <td class="error">{5}</td>
                         </td>
                     </tr>
 
                 </table>
                 <input type="submit" value="Sign me up, Scotty!"/>
             </form>
-            """
+            """.format(username, email , errors['error_username'], errors['error_password'], errors['error_verify'], errors['error_email'])
 
+        clear_dict()
         main_content = signup_form
         content = page_header + main_content + page_footer
         self.response.write(content)
 
+
+class Welcome(webapp2.RequestHandler):
     def post(self):
         have_error = False
         username = self.request.get('username')
@@ -104,37 +126,46 @@ class Signup(webapp2.RequestHandler):
         verify = self.request.get('verify')
         email = self.request.get('email')
 
-        params = dict(username = username,
-                 email = email)
+        #params = dict(username = username,
+        #         email = email)
+
 
         if not valid_username(username):
-            params['error_username'] = "That's not a valid username."
+            #params['error_username'] = "That's not a valid username."
+            #errors += error_username
+            errors['error_username'] = "That's not a valid username."
             have_error = True
 
         if not valid_password(password):
-            params['error_password'] = "That's not a valid password."
+            #params['error_password'] = "That's not a valid password."
+            #errors += error_password
+            errors['error_password'] = "That's not a valid password."
             have_error = True
         elif password != verify:
-            params['error_verify'] = "Your passwords didn't match."
+            #params['error_verify'] = "Your passwords didn't match."
+            #errors += error_verify
+            errors['error_verify'] = "Your passwords didn't match."
             have_error = True
 
         if not valid_email(email):
-            params['error_email'] = "That's not a valid email."
+            #params['error_email'] = "That's not a valid email."
+            #errors += error_email
+            errors['error_email'] = "That's not a valid email."
             have_error = True
 
         if have_error:
-            #render the html for the errors
+            redirect_message = ''
+            for i in errors:
+                redirect_message += (errors[i] + '&')
+            self.redirect('/?username=' + username + '&email=' + email + '&' + redirect_message)
         else:
-            self.redirect('/welcome?username=' + username)
+            main_content = "<h1>Welcome, " + username + "!<h1>"
 
-class Welcome(MainHandler):
-    def get(self):
-        username = self.request.get('username')
-        if valid_username(username):
-            #render the welcome page html
-        else:
-            self.redirect('/signup')
+            content = page_header + main_content + page_footer
+
+            self.response.write(content)
+
 app = webapp2.WSGIApplication([
-    ('/signup', Signup),
+    ('/', Signup),
     ('/welcome', Welcome)
 ], debug=True)
